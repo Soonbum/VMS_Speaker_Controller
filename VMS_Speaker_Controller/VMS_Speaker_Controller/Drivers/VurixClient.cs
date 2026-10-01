@@ -25,17 +25,16 @@ public class VurixClient : DeviceClientBase, IVmsClient, ICameraManageable
             string url = $"http://{Host}:{Port}/api/login?force-login=true";
             EmitLog($"[Vurix Login] {url}");
 
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(3000) };
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add("x-account-id", UserId);
             request.Headers.Add("x-account-pass", Password);
             request.Headers.Add("x-account-group", "group1");
             request.Headers.Add("x-license", "licNormalClient");
-            request.Method = "GET";
-            request.Timeout = 3000;
 
-            using var response = (HttpWebResponse)await request.GetResponseAsync();
-            using var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8);
-            string body = await reader.ReadToEndAsync();
+            using var response = await client.SendAsync(request);
+            string body = await response.Content.ReadAsStringAsync();
 
             JObject obj = JObject.Parse(body);
             if (obj["code"]?.ToString() == "200")
@@ -62,15 +61,20 @@ public class VurixClient : DeviceClientBase, IVmsClient, ICameraManageable
     {
         if (IsConnected)
         {
+            string token = _authToken;
+            string host = Host;
+            int port = Port;
+
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    string url = $"http://{Host}:{Port}/api/logout";
-                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
-                    req.Headers.Add("x-auth-token", _authToken);
-                    req.Method = "DELETE";
-                    await req.GetResponseAsync();
+                    string url = $"http://{host}:{port}/api/logout";
+                    using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(3000) };
+                    using var req = new HttpRequestMessage(HttpMethod.Delete, url);
+                    req.Headers.Add("x-auth-token", token);
+
+                    using var response = await client.SendAsync(req);
                 }
                 catch { }
             });
@@ -107,7 +111,7 @@ public class VurixClient : DeviceClientBase, IVmsClient, ICameraManageable
             if (obj["code"]?.ToString() == "200")
             {
                 JArray tree = (JArray)obj["results"]!["tree"]!;
-                foreach (JObject item in tree)
+                foreach (JObject item in tree.Cast<JObject>())
                 {
                     int devSerial = item["dev_serial"]?.Value<int>() ?? 0;
                     string devName = item["dev_name"]?.ToString() ?? $"CAM_{devSerial}";
@@ -175,14 +179,15 @@ public class VurixClient : DeviceClientBase, IVmsClient, ICameraManageable
 
     private async Task<string> SendAuthGetAsync(string url)
     {
-        HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+        using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(4000) };
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+
         request.Headers.Add("x-auth-token", _authToken);
         request.Headers.Add("x-api-serial", (++_apiSerial).ToString());
-        request.Method = "GET";
-        request.Timeout = 4000;
 
-        using var response = (HttpWebResponse)await request.GetResponseAsync();
-        using var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8);
-        return await reader.ReadToEndAsync();
+        using var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadAsStringAsync();
     }
 }

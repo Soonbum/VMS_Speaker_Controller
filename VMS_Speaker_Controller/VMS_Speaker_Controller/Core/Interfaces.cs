@@ -86,5 +86,9 @@ public abstract class DeviceClientBase : IDeviceClient
 
     public abstract Task<bool> ConnectAsync();
     public abstract void Disconnect();
-    public virtual void Dispose() => Disconnect();
+    public virtual void Dispose()
+    {
+        Disconnect();
+        GC.SuppressFinalize(this);
+    }
 }

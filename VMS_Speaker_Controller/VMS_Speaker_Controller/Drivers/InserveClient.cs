@@ -1,11 +1,12 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using VMS_Speaker_Controller.Core;
 
 namespace VMS_Speaker_Controller.Drivers;
@@ -40,17 +41,17 @@ public class InserveClient : DeviceClientBase, IVmsClient, IPtzControllable, ICa
 
             EmitLog($"[TX Inserve CGI] {url}");
 
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-            string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
-            request.Headers["Authorization"] = $"Basic {auth}";
-            request.Method = "GET";
-            request.Timeout = 3000;
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(3000) };
 
-            using var response = (HttpWebResponse)await request.GetResponseAsync();
-            using var reader = new StreamReader(response.GetResponseStream());
-            string body = await reader.ReadToEndAsync();
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
+
+            using var response = await client.SendAsync(request);
+            string body = await response.Content.ReadAsStringAsync();
+
             EmitLog($"[RX Inserve] Code: {response.StatusCode} | Body: {body.Trim()}");
-            return response.StatusCode == HttpStatusCode.OK;
+            return response.StatusCode == HttpStatusCode.OK; // 또는 response.IsSuccessStatusCode
         }
         catch (Exception ex)
         {
@@ -68,15 +69,16 @@ public class InserveClient : DeviceClientBase, IVmsClient, IPtzControllable, ICa
                 : $"http://{Host}:{Port}/request/ptzcontrol?edgedeviceid={deviceId}&cmd={command}&speed={speed}";
 
             EmitLog($"[TX Inserve PTZ] {url}");
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-            string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
-            request.Headers["Authorization"] = $"Basic {auth}";
-            request.Method = "GET";
-            request.Timeout = 3000;
 
-            using var response = (HttpWebResponse)await request.GetResponseAsync();
-            using var reader = new StreamReader(response.GetResponseStream());
-            string body = await reader.ReadToEndAsync();
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(3000) };
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
+
+            using var response = await client.SendAsync(request);
+            string body = await response.Content.ReadAsStringAsync();
+
             EmitLog($"[RX Inserve PTZ] Result: {body.Trim()}");
             return true;
         }
@@ -96,21 +98,21 @@ public class InserveClient : DeviceClientBase, IVmsClient, IPtzControllable, ICa
 
         try
         {
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(3000) };
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
             string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
-            request.Headers["Authorization"] = $"Basic {auth}";
-            request.Method = "GET";
-            request.Timeout = 3000;
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
 
-            using var response = (HttpWebResponse)await request.GetResponseAsync();
-            using var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8);
-            string body = await reader.ReadToEndAsync();
+            using var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
 
+            string body = await response.Content.ReadAsStringAsync();
             JObject obj = JObject.Parse(body);
 
             if (obj["CameraInfoList"] is JArray camList)
             {
-                foreach (JObject item in camList)
+                foreach (JObject item in camList.Cast<JObject>())
                 {
                     string edgeId = item["EdgeDeviceID"]?.ToString() ?? "";
                     string name = item["EdgeDeviceName"]?.ToString() ?? "";

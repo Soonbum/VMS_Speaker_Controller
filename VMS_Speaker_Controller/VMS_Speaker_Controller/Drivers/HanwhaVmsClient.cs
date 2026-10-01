@@ -53,19 +53,20 @@ public class HanwhaVmsClient : DeviceClientBase, IVmsClient, ICameraManageable
                 string[] kv = parts[2].Split('=');
                 if (kv.Length < 2) continue;
 
-                if (!tempDict.ContainsKey(ch))
+                if (!tempDict.TryGetValue(ch, out CameraDeviceInfo? value))
                 {
-                    tempDict[ch] = new CameraDeviceInfo
+                    value = new CameraDeviceInfo
                     {
                         Id = ch,
                         IpAddress = Host,
                         RtspUrl = $"rtsp://{UserId}:{Password}@{Host}/profile2/media.smp" // 기본 스트림
                     };
+                    tempDict[ch] = value;
                 }
 
                 if (kv[0].Equals("Name", StringComparison.OrdinalIgnoreCase))
                 {
-                    tempDict[ch].Name = kv[1];
+                    value.Name = kv[1];
                 }
                 else if (kv[0].Equals("State", StringComparison.OrdinalIgnoreCase))
                 {
@@ -105,18 +106,26 @@ public class HanwhaVmsClient : DeviceClientBase, IVmsClient, ICameraManageable
 
     private async Task<string> SendDigestRequestAsync(string url)
     {
-        HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-        request.Method = "GET";
-        request.Timeout = 3000;
+        var uri = new Uri(url);
 
         var cache = new CredentialCache
         {
-            { new Uri(url), "Digest", new NetworkCredential(UserId, Password) }
+            { uri, "Digest", new NetworkCredential(UserId, Password) }
         };
-        request.Credentials = cache;
 
-        using var response = (HttpWebResponse)await request.GetResponseAsync();
-        using var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8);
-        return await reader.ReadToEndAsync();
+        using var handler = new HttpClientHandler
+        {
+            Credentials = cache
+        };
+
+        using var client = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromMilliseconds(3000)
+        };
+
+        using var response = await client.GetAsync(uri);
+        response.EnsureSuccessStatusCode(); // 4xx, 5xx 에러 발생 시 예외 발생
+
+        return await response.Content.ReadAsStringAsync();
     }
 }

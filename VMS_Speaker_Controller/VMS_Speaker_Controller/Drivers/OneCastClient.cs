@@ -133,21 +133,15 @@ public class OneCastClient : DeviceClientBase, ISpeakerClient
         }
     }
 
-    private async Task<string> PostJsonAsync(string url, string json)
+    private static async Task<string> PostJsonAsync(string url, string json)
     {
-        HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-        request.Method = "POST";
-        request.Timeout = 4000;
-        request.ContentType = "application/json; charset=utf-8";
+        using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(4000) };
 
-        byte[] sendBytes = Encoding.UTF8.GetBytes(json);
-        using (Stream s = await request.GetRequestStreamAsync())
-        {
-            await s.WriteAsync(sendBytes, 0, sendBytes.Length);
-        }
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        using var response = (HttpWebResponse)await request.GetResponseAsync();
-        using var reader = new StreamReader(response.GetResponseStream());
-        return await reader.ReadToEndAsync();
+        using var response = await client.PostAsync(url, content);
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadAsStringAsync();
     }
 }

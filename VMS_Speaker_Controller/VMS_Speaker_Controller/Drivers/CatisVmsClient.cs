@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using VMS_Speaker_Controller.Core;
@@ -48,28 +49,23 @@ public class CatisVmsClient : DeviceClientBase, IVmsClient
             string postJson = packet.ToString(Newtonsoft.Json.Formatting.None);
             EmitLog($"[TX Request] URL: {url} | Body: {postJson}");
 
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-            request.Method = "POST";
-            request.Timeout = 3000;
-            request.ContentType = "application/json; charset=utf-8";
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(3000) };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
 
             if (UseBasicAuth)
             {
                 string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
-                request.Headers["Authorization"] = $"Basic {auth}";
+                request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
             }
 
-            byte[] sendBytes = Encoding.UTF8.GetBytes(postJson);
-            using (Stream reqStream = await request.GetRequestStreamAsync())
-            {
-                await reqStream.WriteAsync(sendBytes, 0, sendBytes.Length);
-            }
+            request.Content = new StringContent(postJson, Encoding.UTF8, "application/json");
 
-            using var response = (HttpWebResponse)await request.GetResponseAsync();
-            using var reader = new StreamReader(response.GetResponseStream());
-            string resBody = await reader.ReadToEndAsync();
+            using var response = await client.SendAsync(request);
+            string resBody = await response.Content.ReadAsStringAsync();
+
             EmitLog($"[RX Response] Code: {response.StatusCode} | Body: {resBody}");
-            return response.StatusCode == HttpStatusCode.OK;
+            return response.StatusCode == HttpStatusCode.OK; // 또는 response.IsSuccessStatusCode
         }
         catch (Exception ex)
         {

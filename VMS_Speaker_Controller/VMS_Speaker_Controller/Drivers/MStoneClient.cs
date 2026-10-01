@@ -1,10 +1,11 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using VMS_Speaker_Controller.Core;
 
 namespace VMS_Speaker_Controller.Drivers;
@@ -46,24 +47,19 @@ public class MStoneClient : DeviceClientBase, IVmsClient, ICameraManageable
             string postJson = payload.ToString(Newtonsoft.Json.Formatting.None);
             EmitLog($"[TX MStone] URL: {url} (그룹:{groupNo} -> 가변포트:{calcPort}, 디바이스인덱스:{targetDevice - 1}) | Data: {postJson}");
 
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(3000) };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
             string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
-            request.Headers["Authorization"] = $"Basic {auth}";
-            request.Method = "POST";
-            request.Timeout = 3000;
-            request.ContentType = "application/json; charset=utf-8";
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
 
-            byte[] sendBytes = Encoding.UTF8.GetBytes(postJson);
-            using (Stream stream = await request.GetRequestStreamAsync())
-            {
-                await stream.WriteAsync(sendBytes);
-            }
+            request.Content = new StringContent(postJson, Encoding.UTF8, "application/json");
 
-            using var response = (HttpWebResponse)await request.GetResponseAsync();
-            using var reader = new StreamReader(response.GetResponseStream());
-            string body = await reader.ReadToEndAsync();
+            using var response = await client.SendAsync(request);
+            string body = await response.Content.ReadAsStringAsync();
+
             EmitLog($"[RX MStone] Status: {response.StatusCode} | Body: {body}");
-            return response.StatusCode == HttpStatusCode.OK;
+            return response.IsSuccessStatusCode; // 또는 response.StatusCode == HttpStatusCode.OK
         }
         catch (Exception ex)
         {
@@ -81,21 +77,21 @@ public class MStoneClient : DeviceClientBase, IVmsClient, ICameraManageable
 
         try
         {
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(3000) };
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
             string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
-            request.Headers["Authorization"] = $"Basic {auth}";
-            request.Method = "GET";
-            request.Timeout = 3000;
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
 
-            using var response = (HttpWebResponse)await request.GetResponseAsync();
-            using var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8);
-            string body = await reader.ReadToEndAsync();
+            using var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
 
+            string body = await response.Content.ReadAsStringAsync();
             JObject obj = JObject.Parse(body);
 
             if (obj["sources"] is JArray sources)
             {
-                foreach (JObject item in sources)
+                foreach (JObject item in sources.Cast<JObject>())
                 {
                     string id = item["id"]?.ToString() ?? "";
                     string name = item["name"]?.ToString() ?? "";
@@ -128,14 +124,14 @@ public class MStoneClient : DeviceClientBase, IVmsClient, ICameraManageable
             string url = $"http://{Host}:{Port}/ptz/{callId}?action=preset-move&preset={presetNum}";
             EmitLog($"[TX MStone Preset] {url}");
 
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-            string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
-            request.Headers["Authorization"] = $"Basic {auth}";
-            request.Method = "GET";
-            request.Timeout = 3000;
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(3000) };
 
-            using var response = (HttpWebResponse)await request.GetResponseAsync();
-            bool ok = response.StatusCode == HttpStatusCode.OK;
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            string auth = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{UserId}:{Password}"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", auth);
+
+            using var response = await client.SendAsync(request);
+            bool ok = response.StatusCode == HttpStatusCode.OK; // 또는 response.IsSuccessStatusCode
             EmitLog($"[RX MStone Preset Result] Status: {response.StatusCode}");
             return ok;
         }

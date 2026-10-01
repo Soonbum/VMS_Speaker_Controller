@@ -20,33 +20,33 @@ namespace VMS_Speaker_Controller
         private readonly OneCastClient _onecastClient = new();
 
         // 탭별 동적 컨트롤 필드
-        private ComboBox cbVendor;
-        private TextBox txtIp;
-        private TextBox txtPort;
-        private TextBox txtUser;
-        private TextBox txtPass;
-        private TextBox txtDevNo;
-        private TextBox txtSubNo;
-        private TextBox txtGrpNo;
-        private ComboBox cbIntName;
-        private TextBox txtVal;
+        private ComboBox cbVendor = null!;
+        private TextBox txtIp = null!;
+        private TextBox txtPort = null!;
+        private TextBox txtUser = null!;
+        private TextBox txtPass = null!;
+        private TextBox txtDevNo = null!;
+        private TextBox txtSubNo = null!;
+        private TextBox txtGrpNo = null!;
+        private ComboBox cbIntName = null!;
+        private TextBox txtVal = null!;
 
-        private ComboBox cbCamVms;
-        private ListView lvCameras;
-        private TextBox txtTargetCamId;
-        private NumericUpDown numPtzSpeed;
-        private NumericUpDown numPresetVal;
+        private ComboBox cbCamVms = null!;
+        private ListView lvCameras = null!;
+        private TextBox txtTargetCamId = null!;
+        private NumericUpDown numPtzSpeed = null!;
+        private NumericUpDown numPresetVal = null!;
 
-        private TextBox txtSpkIp;
-        private TextBox txtSpkPort;
-        private TextBox txtSpkId;
-        private TextBox txtSpkPw;
-        private TextBox txtFileId;
-        private TextBox txtRepeat;
-        private TextBox txtDevList;
-        private TextBox txtGrpList;
-        private TextBox txtCurrentBcastId;
-        private TextBox txtTtsText;
+        private TextBox txtSpkIp = null!;
+        private TextBox txtSpkPort = null!;
+        private TextBox txtSpkId = null!;
+        private TextBox txtSpkPw = null!;
+        private TextBox txtFileId = null!;
+        private TextBox txtRepeat = null!;
+        private TextBox txtDevList = null!;
+        private TextBox txtGrpList = null!;
+        private TextBox txtCurrentBcastId = null!;
+        private TextBox txtTtsText = null!;
 
         public FormMain()
         {
@@ -79,7 +79,7 @@ namespace VMS_Speaker_Controller
             rtbLog.ScrollToCaret();
         }
 
-        private void BtnClearLog_Click(object sender, EventArgs e)
+        private void BtnClearLog_Click(object? sender, EventArgs e)
         {
             rtbLog.Clear();
         }
@@ -278,7 +278,7 @@ namespace VMS_Speaker_Controller
         // =========================================================================
         // 이벤트 핸들러 로직
         // =========================================================================
-        private void CbVendor_SelectedIndexChanged(object sender, EventArgs e)
+        private void CbVendor_SelectedIndexChanged(object? sender, EventArgs e)
         {
             txtPort.Text = cbVendor.SelectedIndex switch
             {
@@ -293,7 +293,7 @@ namespace VMS_Speaker_Controller
             };
         }
 
-        private async void BtnConnect_Click(object sender, EventArgs e)
+        private async void BtnConnect_Click(object? sender, EventArgs e)
         {
             string host = txtIp.Text.Trim();
             int port = int.TryParse(txtPort.Text.Trim(), out var p) ? p : 80;
@@ -333,14 +333,14 @@ namespace VMS_Speaker_Controller
             }
         }
 
-        private void BtnDisconnect_Click(object sender, EventArgs e)
+        private void BtnDisconnect_Click(object? sender, EventArgs e)
         {
             _idisClient.Disconnect();
             _mgictClient.Disconnect();
             _vurixClient.Disconnect();
         }
 
-        private async void BtnSendAlarm_Click(object sender, EventArgs e)
+        private async void BtnSendAlarm_Click(object? sender, EventArgs e)
         {
             var data = new AlarmEventData
             {
@@ -363,7 +363,7 @@ namespace VMS_Speaker_Controller
             }
         }
 
-        private async void BtnFetchCams_Click(object sender, EventArgs e)
+        private async void BtnFetchCams_Click(object? sender, EventArgs e)
         {
             string host = txtIp.Text.Trim();
             int port = int.TryParse(txtPort.Text.Trim(), out var p) ? p : 80;
@@ -403,7 +403,7 @@ namespace VMS_Speaker_Controller
             }
         }
 
-        private void LvCameras_SelectedIndexChanged(object sender, EventArgs e)
+        private void LvCameras_SelectedIndexChanged(object? sender, EventArgs e)
         {
             if (lvCameras.SelectedItems.Count > 0)
             {
@@ -429,7 +429,7 @@ namespace VMS_Speaker_Controller
             }
         }
 
-        private async void BtnCallPreset_Click(object sender, EventArgs e)
+        private async void BtnCallPreset_Click(object? sender, EventArgs e)
         {
             string camId = txtTargetCamId.Text.Trim();
             string pNum = numPresetVal.Value.ToString();
@@ -449,7 +449,7 @@ namespace VMS_Speaker_Controller
             }
         }
 
-        private async void BtnSendFile_Click(object sender, EventArgs e)
+        private async void BtnSendFile_Click(object? sender, EventArgs e)
         {
             _onecastClient.Host = txtSpkIp.Text.Trim();
             _onecastClient.Port = int.TryParse(txtSpkPort.Text.Trim(), out var p) ? p : 8080;
@@ -465,7 +465,7 @@ namespace VMS_Speaker_Controller
             if (bId > 0) txtCurrentBcastId.Text = bId.ToString();
         }
 
-        private async void BtnSendTts_Click(object sender, EventArgs e)
+        private async void BtnSendTts_Click(object? sender, EventArgs e)
         {
             _onecastClient.Host = txtSpkIp.Text.Trim();
             _onecastClient.Port = int.TryParse(txtSpkPort.Text.Trim(), out var p) ? p : 8080;
@@ -480,7 +480,7 @@ namespace VMS_Speaker_Controller
             if (bId > 0) txtCurrentBcastId.Text = bId.ToString();
         }
 
-        private async void BtnStopBcast_Click(object sender, EventArgs e)
+        private async void BtnStopBcast_Click(object? sender, EventArgs e)
         {
             if (int.TryParse(txtCurrentBcastId.Text.Trim(), out var bId) && bId > 0)
             {
